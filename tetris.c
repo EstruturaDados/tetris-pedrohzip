@@ -3,6 +3,7 @@
 #include <time.h>
 
 #define MAX_FILA 5
+#define MAX_PILHA 3
 
 typedef struct {
     char nome; // 'I', 'O', 'T', 'L'
@@ -15,6 +16,11 @@ typedef struct {
     int tail; // posição para inserir próxima peça
     int count;
 } FilaCircular;
+
+typedef struct {
+    Peca dados[MAX_PILHA];
+    int topo;
+} PilhaReserva;
 
 static int nextId = 1;
 
@@ -81,19 +87,63 @@ void mostrarFila(FilaCircular *f) {
     printf("\n");
 }
 
+void initPilha(PilhaReserva *p) {
+    p->topo = -1;
+}
+
+int pilhaVazia(PilhaReserva *p) {
+    return p->topo == -1;
+}
+
+int pilhaCheia(PilhaReserva *p) {
+    return p->topo == MAX_PILHA - 1;
+}
+
+int push(PilhaReserva *p, Peca peca) {
+    if (pilhaCheia(p)) return 0;
+    p->topo++;
+    p->dados[p->topo] = peca;
+    return 1;
+}
+
+int pop(PilhaReserva *p, Peca *out) {
+    if (pilhaVazia(p)) return 0;
+    if (out) *out = p->dados[p->topo];
+    p->topo--;
+    return 1;
+}
+
+void mostrarPilha(PilhaReserva *p) {
+    printf("\nEstado da pilha de reserva [tamanho=%d]:\n", p->topo + 1);
+    if (pilhaVazia(p)) {
+        printf("  <vazia>\n");
+        return;
+    }
+    for (int i = p->topo; i >= 0; i--) {
+        Peca peca = p->dados[i];
+        printf("  [%d] %c", peca.id, peca.nome);
+        if (i == p->topo) printf("  <- topo");
+        printf("\n");
+    }
+    printf("\n");
+}
+
 int main(void) {
     srand((unsigned) time(NULL));
 
     FilaCircular fila;
+    PilhaReserva pilha;
     initFila(&fila);
+    initPilha(&pilha);
 
     int opcao = -1;
     while (opcao != 0) {
         mostrarFila(&fila);
-        printf("Menu:\n");
-        printf(" 1 - Jogar peça (dequeue) => remove frente e INSERE automaticamente nova peça no final\n");
-        printf(" 2 - Inserir nova peça manualmente (enqueue)\n");
-        printf(" 3 - Visualizar fila\n");
+        mostrarPilha(&pilha);
+        printf("\nMenu:\n");
+        printf(" 1 - Jogar peça\n");
+        printf(" 2 - Reservar peça\n");
+        printf(" 3 - Usar peça reservada\n");
         printf(" 0 - Sair\n");
         printf("Escolha: ");
         if (scanf("%d", &opcao) != 1) {
@@ -115,20 +165,38 @@ int main(void) {
                 if (enqueue(&fila, nova)) {
                     printf("Nova peça inserida automaticamente: id=%d nome=%c\n", nova.id, nova.nome);
                 } else {
-                    // Normalmente não ocorre porque removemos antes
                     printf("Falha ao inserir nova peça (fila cheia).\n");
                 }
             }
         } else if (opcao == 2) {
-            if (filaCheia(&fila)) {
-                printf("Não é possível inserir: fila está cheia.\n");
+            if (pilhaCheia(&pilha)) {
+                printf("Não é possível reservar: pilha de reserva está cheia.\n");
             } else {
-                Peca nova = gerarPeca();
-                enqueue(&fila, nova);
-                printf("Peça inserida manualmente: id=%d nome=%c\n", nova.id, nova.nome);
+                Peca peca;
+                if (!dequeue(&fila, &peca)) {
+                    printf("Fila vazia: nada para reservar.\n");
+                } else {
+                    if (push(&pilha, peca)) {
+                        printf("Peça reservada com sucesso: id=%d nome=%c\n", peca.id, peca.nome);
+                        // inserir automaticamente nova peça no final da fila
+                        Peca nova = gerarPeca();
+                        if (enqueue(&fila, nova)) {
+                            printf("Nova peça inserida automaticamente: id=%d nome=%c\n", nova.id, nova.nome);
+                        }
+                    } else {
+                        printf("Erro ao reservar peça.\n");
+                        // Devolver a peça para a fila
+                        enqueue(&fila, peca);
+                    }
+                }
             }
         } else if (opcao == 3) {
-            // apenas mostra no início do loop; nada a fazer aqui
+            Peca reservada;
+            if (!pop(&pilha, &reservada)) {
+                printf("Pilha de reserva vazia: nenhuma peça para usar.\n");
+            } else {
+                printf("Usando peça reservada: id=%d nome=%c\n", reservada.id, reservada.nome);
+            }
         } else if (opcao == 0) {
             printf("Saindo...\n");
         } else {
