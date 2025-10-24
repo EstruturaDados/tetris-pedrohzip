@@ -6,23 +6,6 @@
 #define MAX_PILHA 3
 #define MAX_HISTORICO 10
 
-typedef struct {
-    char nome; // 'I', 'O', 'T', 'L'
-    int id;    // identificador único
-} Peca;
-
-typedef struct {
-    Peca dados[MAX_FILA];
-    int head;
-    int tail; // posição para inserir próxima peça
-    int count;
-} FilaCircular;
-
-typedef struct {
-    Peca dados[MAX_PILHA];
-    int topo;
-} PilhaReserva;
-
 // Tipo de ação para o histórico
 typedef enum {
     ACAO_JOGAR,
@@ -39,6 +22,23 @@ typedef struct {
     FilaCircular estadoFila;
     PilhaReserva estadoPilha;
 } Historico;
+
+typedef struct {
+    char nome; // 'I', 'O', 'T', 'L'
+    int id;    // identificador único
+} Peca;
+
+typedef struct {
+    Peca dados[MAX_FILA];
+    int head;
+    int tail; // posição para inserir próxima peça
+    int count;
+} FilaCircular;
+
+typedef struct {
+    Peca dados[MAX_PILHA];
+    int topo;
+} PilhaReserva;
 
 typedef struct {
     Historico acoes[MAX_HISTORICO];
@@ -271,15 +271,11 @@ int main(void) {
             if (!dequeue(&fila, &jogada)) {
                 printf("Fila vazia: nada para jogar.\n");
             } else {
-                FilaCircular filaAntiga = fila;
-                PilhaReserva pilhaAntiga = pilha;
-                
                 printf("Peça jogada: id=%d nome=%c\n", jogada.id, jogada.nome);
                 // inserir automaticamente nova peça no final
                 Peca nova = gerarPeca();
                 if (enqueue(&fila, nova)) {
                     printf("Nova peça inserida automaticamente: id=%d nome=%c\n", nova.id, nova.nome);
-                    salvarEstado(&historico, ACAO_JOGAR, jogada, &filaAntiga, &pilhaAntiga);
                 } else {
                     printf("Falha ao inserir nova peça (fila cheia).\n");
                 }
@@ -292,16 +288,12 @@ int main(void) {
                 if (!dequeue(&fila, &peca)) {
                     printf("Fila vazia: nada para reservar.\n");
                 } else {
-                    FilaCircular filaAntiga = fila;
-                    PilhaReserva pilhaAntiga = pilha;
-                    
                     if (push(&pilha, peca)) {
                         printf("Peça reservada com sucesso: id=%d nome=%c\n", peca.id, peca.nome);
                         // inserir automaticamente nova peça no final da fila
                         Peca nova = gerarPeca();
                         if (enqueue(&fila, nova)) {
                             printf("Nova peça inserida automaticamente: id=%d nome=%c\n", nova.id, nova.nome);
-                            salvarEstado(&historico, ACAO_RESERVAR, peca, &filaAntiga, &pilhaAntiga);
                         }
                     } else {
                         printf("Erro ao reservar peça.\n");
@@ -315,11 +307,12 @@ int main(void) {
             if (!pop(&pilha, &reservada)) {
                 printf("Pilha de reserva vazia: nenhuma peça para usar.\n");
             } else {
-                FilaCircular filaAntiga = fila;
-                PilhaReserva pilhaAntiga = pilha;
                 printf("Usando peça reservada: id=%d nome=%c\n", reservada.id, reservada.nome);
-                salvarEstado(&historico, ACAO_USAR_RESERVA, reservada, &filaAntiga, &pilhaAntiga);
             }
+        } else if (opcao == 0) {
+            printf("Saindo...\n");
+        } else {
+            printf("Opção inválida.\n");
         } else if (opcao == 4) {
             if (filaVazia(&fila)) {
                 printf("Fila vazia: não é possível trocar peças.\n");
@@ -348,10 +341,6 @@ int main(void) {
                 printf("Fila e pilha invertidas com sucesso!\n");
                 salvarEstado(&historico, ACAO_INVERTER, fila.dados[fila.head], &filaAntiga, &pilhaAntiga);
             }
-        } else if (opcao == 0) {
-            printf("Saindo...\n");
-        } else {
-            printf("Opção inválida.\n");
         }
     }
 
