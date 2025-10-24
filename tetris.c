@@ -1,56 +1,140 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 
-// Desafio Tetris Stack
-// Tema 3 - Integração de Fila e Pilha
-// Este código inicial serve como base para o desenvolvimento do sistema de controle de peças.
-// Use as instruções de cada nível para desenvolver o desafio.
+#define MAX_FILA 5
 
-int main() {
+typedef struct {
+    char nome; // 'I', 'O', 'T', 'L'
+    int id;    // identificador único
+} Peca;
 
-    // 🧩 Nível Novato: Fila de Peças Futuras
-    //
-    // - Crie uma struct Peca com os campos: tipo (char) e id (int).
-    // - Implemente uma fila circular com capacidade para 5 peças.
-    // - Crie funções como inicializarFila(), enqueue(), dequeue(), filaCheia(), filaVazia().
-    // - Cada peça deve ser gerada automaticamente com um tipo aleatório e id sequencial.
-    // - Exiba a fila após cada ação com uma função mostrarFila().
-    // - Use um menu com opções como:
-    //      1 - Jogar peça (remover da frente)
-    //      0 - Sair
-    // - A cada remoção, insira uma nova peça ao final da fila.
+typedef struct {
+    Peca dados[MAX_FILA];
+    int head;
+    int tail; // posição para inserir próxima peça
+    int count;
+} FilaCircular;
 
+static int nextId = 1;
 
+char nomesPossiveis[] = { 'I', 'O', 'T', 'L' };
 
-    // 🧠 Nível Aventureiro: Adição da Pilha de Reserva
-    //
-    // - Implemente uma pilha linear com capacidade para 3 peças.
-    // - Crie funções como inicializarPilha(), push(), pop(), pilhaCheia(), pilhaVazia().
-    // - Permita enviar uma peça da fila para a pilha (reserva).
-    // - Crie um menu com opção:
-    //      2 - Enviar peça da fila para a reserva (pilha)
-    //      3 - Usar peça da reserva (remover do topo da pilha)
-    // - Exiba a pilha junto com a fila após cada ação com mostrarPilha().
-    // - Mantenha a fila sempre com 5 peças (repondo com gerarPeca()).
+Peca gerarPeca() {
+    Peca p;
+    p.nome = nomesPossiveis[rand() % (sizeof(nomesPossiveis)/sizeof(nomesPossiveis[0]))];
+    p.id = nextId++;
+    return p;
+}
 
+void initFila(FilaCircular *f) {
+    f->head = 0;
+    f->tail = 0;
+    f->count = 0;
+    for (int i = 0; i < MAX_FILA; ++i) {
+        // enfileira 5 peças iniciais
+        Peca p = gerarPeca();
+        f->dados[f->tail] = p;
+        f->tail = (f->tail + 1) % MAX_FILA;
+        f->count++;
+    }
+}
 
-    // 🔄 Nível Mestre: Integração Estratégica entre Fila e Pilha
-    //
-    // - Implemente interações avançadas entre as estruturas:
-    //      4 - Trocar a peça da frente da fila com o topo da pilha
-    //      5 - Trocar os 3 primeiros da fila com as 3 peças da pilha
-    // - Para a opção 4:
-    //      Verifique se a fila não está vazia e a pilha tem ao menos 1 peça.
-    //      Troque os elementos diretamente nos arrays.
-    // - Para a opção 5:
-    //      Verifique se a pilha tem exatamente 3 peças e a fila ao menos 3.
-    //      Use a lógica de índice circular para acessar os primeiros da fila.
-    // - Sempre valide as condições antes da troca e informe mensagens claras ao usuário.
-    // - Use funções auxiliares, se quiser, para modularizar a lógica de troca.
-    // - O menu deve ficar assim:
-    //      4 - Trocar peça da frente com topo da pilha
-    //      5 - Trocar 3 primeiros da fila com os 3 da pilha
+int filaVazia(FilaCircular *f) {
+    return f->count == 0;
+}
 
+int filaCheia(FilaCircular *f) {
+    return f->count == MAX_FILA;
+}
+
+int enqueue(FilaCircular *f, Peca p) {
+    if (filaCheia(f)) return 0; // falha
+    f->dados[f->tail] = p;
+    f->tail = (f->tail + 1) % MAX_FILA;
+    f->count++;
+    return 1; // sucesso
+}
+
+int dequeue(FilaCircular *f, Peca *out) {
+    if (filaVazia(f)) return 0;
+    if (out) *out = f->dados[f->head];
+    f->head = (f->head + 1) % MAX_FILA;
+    f->count--;
+    return 1;
+}
+
+void mostrarFila(FilaCircular *f) {
+    printf("\nEstado da fila (frente -> final) [count=%d]:\n", f->count);
+    if (filaVazia(f)) {
+        printf("  <vazia>\n");
+        return;
+    }
+    int idx = f->head;
+    for (int i = 0; i < f->count; ++i) {
+        Peca p = f->dados[idx];
+        printf("  [%d] %c", p.id, p.nome);
+        if (i == 0) printf("  <- frente");
+        printf("\n");
+        idx = (idx + 1) % MAX_FILA;
+    }
+    printf("\n");
+}
+
+int main(void) {
+    srand((unsigned) time(NULL));
+
+    FilaCircular fila;
+    initFila(&fila);
+
+    int opcao = -1;
+    while (opcao != 0) {
+        mostrarFila(&fila);
+        printf("Menu:\n");
+        printf(" 1 - Jogar peça (dequeue) => remove frente e INSERE automaticamente nova peça no final\n");
+        printf(" 2 - Inserir nova peça manualmente (enqueue)\n");
+        printf(" 3 - Visualizar fila\n");
+        printf(" 0 - Sair\n");
+        printf("Escolha: ");
+        if (scanf("%d", &opcao) != 1) {
+            // entrada inválida: descartar restante da linha
+            int c;
+            while ((c = getchar()) != '\n' && c != EOF) {}
+            opcao = -1;
+            continue;
+        }
+
+        if (opcao == 1) {
+            Peca jogada;
+            if (!dequeue(&fila, &jogada)) {
+                printf("Fila vazia: nada para jogar.\n");
+            } else {
+                printf("Peça jogada: id=%d nome=%c\n", jogada.id, jogada.nome);
+                // inserir automaticamente nova peça no final
+                Peca nova = gerarPeca();
+                if (enqueue(&fila, nova)) {
+                    printf("Nova peça inserida automaticamente: id=%d nome=%c\n", nova.id, nova.nome);
+                } else {
+                    // Normalmente não ocorre porque removemos antes
+                    printf("Falha ao inserir nova peça (fila cheia).\n");
+                }
+            }
+        } else if (opcao == 2) {
+            if (filaCheia(&fila)) {
+                printf("Não é possível inserir: fila está cheia.\n");
+            } else {
+                Peca nova = gerarPeca();
+                enqueue(&fila, nova);
+                printf("Peça inserida manualmente: id=%d nome=%c\n", nova.id, nova.nome);
+            }
+        } else if (opcao == 3) {
+            // apenas mostra no início do loop; nada a fazer aqui
+        } else if (opcao == 0) {
+            printf("Saindo...\n");
+        } else {
+            printf("Opção inválida.\n");
+        }
+    }
 
     return 0;
 }
-
